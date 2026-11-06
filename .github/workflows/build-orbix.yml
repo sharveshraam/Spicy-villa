@@ -1,0 +1,50 @@
+name: Build Orbix Windows EXE
+
+on:
+  push:
+    paths:
+      - "orbix-source.zip"
+      - ".github/workflows/build-orbix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Extract Orbix source
+        shell: pwsh
+        run: Expand-Archive -LiteralPath orbix-source.zip -DestinationPath orbix -Force
+
+      - name: Install frontend dependencies
+        working-directory: orbix
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: orbix
+        run: bun run build
+
+      - name: Build Windows executable
+        working-directory: orbix/src-tauri
+        run: cargo build --release --locked
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbix-windows-exe
+          path: orbix/src-tauri/target/release/orbix.exe
+          if-no-files-found: error
+          retention-days: 14
